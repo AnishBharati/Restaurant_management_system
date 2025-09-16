@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  WAITER
+}
+
+model User {
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  password String
+  image    String?
+  role     Role    @default(ADMIN)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  refresh_token refresh_token[]
+
+  @@index([name])
+  @@index([companyId])
+  @@index([email])
+}
+
+model Company {
+  id               String  @id @default(cuid())
+  name             String  @unique
+  description      String
+  logo             String?
+  location         String
+  number           String
+  allowed_discount String?
+  User             User[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Table        Table[]
+  TableSession TableSession[]
+  TableAssign  TableAssign[]
+}
+
+enum TableStatus {
+  ACTIVE
+  IN_ACTIVE
+}
+
+model Table {
+  id   String @id @default(cuid())
+  name String
+  qr   String
+
+  companyId String
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  status TableStatus @default(IN_ACTIVE)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  TableAssign TableAssign[]
+
+  @@index([name])
+  @@index([status])
+  @@index([companyId])
+}
+
+model TableSession {
+  id String @id @default(cuid())
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  start_time DateTime
+  end_time   DateTime?
+
+  session_status SessionChangeStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  TableAssign TableAssign[]
+
+  @@index([start_time])
+  @@index([session_status])
+  @@index([companyId])
+}
+
+model TableAssign {
+  id String @id @default(cuid())
+
+  tableId String
+  table   Table? @relation(fields: [tableId], references: [id])
+
+  tableSessionId String
+  TableSession   TableSession? @relation(fields: [tableSessionId], references: [id])
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tableId])
+  @@index([tableSessionId])
+  @@index([companyId])
+}
+
+enum SessionChangeStatus {
+  ACTIVATED
+  MERGED
+  SWITCHED
+  CLOSED
+}
+
+model refresh_token {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
